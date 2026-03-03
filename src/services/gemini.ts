@@ -1,17 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getApiKey = () => {
-  // 优先尝试 Vite 标准的客户端变量
   // @ts-ignore
-  const viteKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (viteKey) return viteKey;
-
-  // 其次尝试 process.env 注入
-  // @ts-ignore
-  const processKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
-  if (processKey) return processKey;
-
-  return "";
+  const key = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  return key || "";
 };
 
 const apiKey = getApiKey();
