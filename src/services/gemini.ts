@@ -1,15 +1,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getApiKey = () => {
+  // 优先尝试 Vite 标准的客户端变量
   // @ts-ignore
-  const key = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-  if (!key) {
-    console.warn("GEMINI_API_KEY not found in environment variables.");
-  }
-  return key || "";
+  const viteKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (viteKey) return viteKey;
+
+  // 其次尝试 process.env 注入
+  // @ts-ignore
+  const processKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
+  if (processKey) return processKey;
+
+  return "";
 };
 
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
+const apiKey = getApiKey();
+export { apiKey };
+// 只有在有 key 的情况下才初始化，避免启动时崩溃
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export interface UserProfile {
   height: number;
@@ -22,6 +30,10 @@ export interface UserProfile {
 }
 
 export async function generateFitnessPlan(profile: UserProfile) {
+  if (!ai) {
+    throw new Error("API Key 未配置。请在 Vercel 环境变量中设置 VITE_GEMINI_API_KEY。");
+  }
+
   const prompt = `为以下用户生成7天健身和营养计划（JSON格式，使用中文）：
   - 身高: ${profile.height}cm, 体重: ${profile.weight}kg, 年龄: ${profile.age}, 性别: ${profile.gender}
   - 目标: ${profile.goal}, 水平: ${profile.level}, 预期体重: ${profile.targetWeight}kg

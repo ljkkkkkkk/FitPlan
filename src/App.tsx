@@ -21,7 +21,7 @@ import {
   Scale,
   LineChart
 } from 'lucide-react';
-import { generateFitnessPlan, UserProfile } from './services/gemini';
+import { generateFitnessPlan, UserProfile, apiKey } from './services/gemini';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -243,6 +243,23 @@ export default function App() {
         <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
         <h2 className="text-2xl font-semibold text-stone-900">{loadingMessage}</h2>
         <p className="text-stone-500 mt-2 max-w-xs">我们的 AI 正在为您打造科学的健身与营养之旅，请稍候。</p>
+      </div>
+    );
+  }
+
+  if (showOnboarding && !apiKey) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-rose-100 max-w-md">
+          <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Scale className="w-8 h-8 text-rose-500" />
+          </div>
+          <h2 className="text-xl font-bold text-stone-900 mb-2">未检测到 API Key</h2>
+          <p className="text-stone-500 text-sm mb-6 leading-relaxed">
+            请在 Vercel 后台设置环境变量 <code className="bg-stone-100 px-1 rounded text-rose-600">VITE_GEMINI_API_KEY</code> 并重新部署应用。
+          </p>
+          <Button onClick={() => window.location.reload()} className="w-full bg-stone-900">刷新页面</Button>
+        </div>
       </div>
     );
   }
