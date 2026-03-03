@@ -144,11 +144,11 @@ export default function App() {
   }, [activeTab]);
 
   const fetchUserData = async () => {
-    console.log("Fetching user data for:", userEmail);
+    console.log("Loading user data from localStorage");
     try {
-      const res = await fetch(`/api/user/${encodeURIComponent(userEmail)}`);
-      if (res.ok) {
-        const data = await res.json();
+      const savedData = localStorage.getItem('fitflow_user_data');
+      if (savedData) {
+        const data = JSON.parse(savedData);
         setProfile(data.profile);
         setPlan(data.plan);
         fetchLogs();
@@ -156,7 +156,7 @@ export default function App() {
         setShowOnboarding(true);
       }
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error("Load error:", err);
       setShowOnboarding(true);
     } finally {
       setLoading(false);
@@ -164,23 +164,20 @@ export default function App() {
   };
 
   const fetchLogs = async () => {
-    console.log("Fetching logs for:", userEmail);
-    const res = await fetch(`/api/logs/${encodeURIComponent(userEmail)}`);
-    if (res.ok) {
-      const data = await res.json();
-      console.log("Logs fetched:", data.length, "entries");
+    console.log("Loading logs from localStorage");
+    const savedLogs = localStorage.getItem('fitflow_logs');
+    if (savedLogs) {
+      const data = JSON.parse(savedLogs);
+      console.log("Logs loaded:", data.length, "entries");
       setLogs(data);
     }
   };
 
   const handleUpdatePlan = async (updatedPlan: Plan) => {
-    if (!plan) return;
+    if (!plan || !profile) return;
     try {
-      await fetch('/api/user/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, plan: updatedPlan })
-      });
+      const newData = { profile, plan: updatedPlan };
+      localStorage.setItem('fitflow_user_data', JSON.stringify(newData));
       setPlan(updatedPlan);
       setIsEditingPlan(false);
       setEditingDayIdx(null);
@@ -223,11 +220,8 @@ export default function App() {
       const generatedPlan = await generateFitnessPlan(newProfile);
       setLoadingMessage("正在保存您的专属计划...");
       
-      await fetch('/api/user/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, profile: newProfile, plan: generatedPlan })
-      });
+      const userData = { profile: newProfile, plan: generatedPlan };
+      localStorage.setItem('fitflow_user_data', JSON.stringify(userData));
 
       setProfile(newProfile);
       setPlan(generatedPlan);
@@ -687,83 +681,6 @@ function Onboarding({ onComplete }: { onComplete: (profile: UserProfile) => void
   );
 }
 
-function LogForm({ onLog, userEmail, currentWeight, maintenance }: { onLog: () => void, userEmail: string, currentWeight: number, maintenance: number }) {
-  const [weight, setWeight] = useState(currentWeight);
-  const [calIn, setCalIn] = useState(0);
-  const [calOut, setCalOut] = useState(0);
-  const [done, setDone] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const deficit = maintenance - calIn + calOut;
-
-  const handleSubmit = async () => {
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    console.log("Submitting log for date:", dateStr);
-    setSaving(true);
-    try {
-      const res = await fetch('/api/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail,
-          date: dateStr,
-          weight,
-          calories_in: calIn,
-          calories_out: calOut,
-          completed_workout: done
-        })
-      });
-      if (res.ok) {
-        console.log("Log saved successfully");
-        onLog();
-        alert("记录成功！");
-      } else {
-        const errData = await res.json();
-        console.error("Save failed:", errData);
-        alert("保存失败: " + (errData.error || "未知错误"));
-      }
-    } catch (err) {
-      console.error("Submit error:", err);
-      alert("网络错误，请重试");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card className="space-y-4">
-      <h3 className="font-bold text-lg">记录今日进度</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-[10px] font-bold text-stone-400 uppercase">体重 (kg)</label>
-          <input type="number" value={weight} onChange={e => setWeight(+e.target.value)} className="w-full p-3 bg-stone-50 rounded-xl border border-black/5 outline-none" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-[10px] font-bold text-stone-400 uppercase">摄入热量 (kcal)</label>
-          <input type="number" value={calIn} onChange={e => setCalIn(+e.target.value)} className="w-full p-3 bg-stone-50 rounded-xl border border-black/5 outline-none" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-[10px] font-bold text-stone-400 uppercase">运动消耗 (kcal)</label>
-          <input type="number" value={calOut} onChange={e => setCalOut(+e.target.value)} className="w-full p-3 bg-stone-50 rounded-xl border border-black/5 outline-none" />
-        </div>
-        <div className="flex flex-col justify-center">
-          <p className="text-[10px] font-bold text-stone-400 uppercase">今日缺口</p>
-          <p className={cn("text-lg font-bold", deficit > 0 ? "text-emerald-600" : "text-rose-500")}>
-            {deficit} kcal
-          </p>
-        </div>
-      </div>
-      <label className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl cursor-pointer">
-        <input type="checkbox" checked={done} onChange={e => setDone(e.target.checked)} className="w-5 h-5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" />
-        <span className="text-sm font-medium">已完成今日训练</span>
-      </label>
-      <Button onClick={handleSubmit} disabled={saving} className="w-full">
-        {saving ? "正在保存..." : "保存进度"}
-      </Button>
-    </Card>
-  );
-}
 
 function CalorieCalculator({ maintenance }: { maintenance: number }) {
   const [calIn, setCalIn] = useState(0);
